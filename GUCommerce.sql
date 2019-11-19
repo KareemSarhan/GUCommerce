@@ -190,7 +190,7 @@ Exec sp_rename 'Products.availabe', 'availabe', 'COLUMN';
 ----------------------------------------------------------------Regesteration-------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 Go;
-Create Proc customerRegister
+create Proc customerRegister
 	@username Varchar(20),
 	@first_name Varchar(20),
 	@last_name Varchar(20),
@@ -198,9 +198,12 @@ Create Proc customerRegister
 	@email Varchar(50)
 	AS
 	Begin
-		IF Not Exists(Select username
-			From Customer
-			Where Customer.username = @username)
+		IF Not Exists
+			(
+			Select username
+			From Users
+			Where Users.username = @username
+			)
 			Begin
 				Insert Into Users(username,first_name,last_name,password,email) 
 					Values(@username,@first_name,@last_name,@password,@email);
@@ -221,8 +224,8 @@ Create Proc vendorRegister
 	AS
 	Begin
 		IF Not Exists(Select username
-			From Vendor
-			Where Vendor.username = @username)
+			From Users
+			Where Users.username = @username)
 			Begin
 				Insert Into Users(username,first_name,last_name,password,email) 
 					Values(@username,@first_name,@last_name,@password,@email);
@@ -398,28 +401,48 @@ Create Proc showWishlistProduct
 --i)
 Go;
 Create Proc viewMyCart
-	@customer varchar(20)
-	AS
-	Begin
-		Select p.*
-		From Products p
-			Inner Join CustomerAddstoCartProduct c On p.serial_no=c.serial_no
-		Where c.customer_username=@customer
-	End
+    @customer varchar(20)
+    AS
+    Begin
+        Select p.*
+        From Products p
+            Inner Join CustomerAddstoCartProduct c On p.serial_no=c.serial_no
+        Where c.customer_username=@customer
+    End
 --j)
 Go;
 Create Proc calculatepriceOrder
-	@customername varchar(20),
-	@sum decimal(10,2) Output
-	As
-	Begin
-		Select @sum=Sum(p.price)
-		From 
+    @customername varchar(20),
+    @sum decimal(10,2) Output
+    As
+    Begin
+        Select @sum=Sum(p.price)
+        From CustomerAddstoCartProduct c 
+            Inner Join Products p On c.serial_no=p.serial_no
+        Where c.customer_username=@customername
+    End
+Go;
+Create Proc productsinorder
+    @customername varchar(20), 
+    @orderID int
+    As
+    Begin
+        Update Products 
+            Inner Join Wishlist
+        Set customer_username=@customername
+        Where 
+Go;
+Create Proc emptyCart
+    @customername varchar(20)
+    AS
+    Begin
+        Delete From CustomerAddstoCartProduct Where customer_username=@customername
+    End
+Go;
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 --------------------------------------------------------------------Insertions------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------------------------------------
-
 INSERT INTO Users(Username,first_name,last_name,password,email) VALUES('hana.aly','hana','aly','pass1','hana.aly@guc.edu.eg')
 INSERT INTO Users(Username,first_name,last_name,password,email) VALUES('ammar.yasser','ammar','yasser','pass4','ammar.yasser@guc.edu.eg')
 INSERT INTO Users(Username,first_name,last_name,password,email) VALUES('nada.sharaf','nada','sharaf','pass7','nada.sharaf@guc.edu.eg')
@@ -432,6 +455,8 @@ INSERT INTO Admins(Username) VALUES('nada.sharaf')
 INSERT INTO Customer(Username,points) VALUES('ammar.yasser',15)
 
 INSERT INTO CustomerAddstoCartProduct(serial_no,customer_username)VALUES(1,'ammar.yasser')
+INSERT INTO CustomerAddstoCartProduct(serial_no,customer_username)VALUES(2,'ammar.yasser')--Extra
+INSERT INTO CustomerAddstoCartProduct(serial_no,customer_username)VALUES(3,'ammar.yasser')--Extra
 
 INSERT INTO Vendor(username,activated,company_name,bank_acc_no,admin_username) VALUES('hadeel.adel',1,'Dello',47449349234,'hana.aly')
 
@@ -450,7 +475,7 @@ INSERT INTO Delivery(Type,time_duration ,fees) VALUES('pick-up',7 ,10)
 INSERT INTO Delivery(Type,time_duration ,fees) VALUES('regular',14 ,30)
 INSERT INTO Delivery(Type,time_duration ,fees) VALUES('speedy ',1 ,50)
 
-INSERT INTO Products(product_name, category ,product_description ,price, final_price ,color ,available ,rate ,vendor_username ) VALUES('Bag','Fashion','backbag',100,100,'yellow',1,0,'hadeel.adel')
+INSERT INTO Products(product_name, category ,product_description ,price, final_price ,color ,availabe ,rate ,vendor_username ) VALUES('Bag','Fashion','backbag',100,100,'yellow',1,0,'hadeel.adel')
 INSERT INTO Products(product_name, category ,product_description ,price, final_price ,color ,available ,rate ,vendor_username ) VALUES('Blue pen','stationary','useful pen',10,10,'Blue',1,0,'hadeel.adel')
 INSERT INTO Products(product_name, category ,product_description ,price, final_price ,color ,available ,rate ,vendor_username ) VALUES('Blue pen','stationary','useful pen',10,10,'Blue',0,0,'hadeel.adel')
 
@@ -486,6 +511,9 @@ SELECT * FROM offer;
 SELECT * FROM Wishlist;
 SELECT * FROM Wishlist_Product;
 SELECT * FROM Customer_CreditCard;
+
+
+
 SELECT * FROM GiftCard;
 SELECT * FROM Orders;
 SELECT * FROM Todays_Deals_Products;
@@ -498,10 +526,14 @@ SELECT * FROM Admin_Delivery_Order;
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Exec showWishlistProduct 'ammar.yasser','fashion'
+
 Exec viewMyCart 'ammar.yasser'
 
+Declare @sum Int
+Exec calculatepriceOrder 'ammar.yasser',@sum OUTPUT
+print @sum   
 
-
+Exec customerRegister 'ammar.yasser','ammar','yasser','pass4','ammar.yasser@guc.edu.eg','Dello',47449349234;
 
 
 
@@ -511,7 +543,127 @@ Exec viewMyCart 'ammar.yasser'
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------Extras--------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------------------------------------
-drop Proc showWishlistProduct;
+drop Proc calculatepriceOrder;
 Drop Table Delivery;
 Delete From Products;
-Delete From Wishlist_Product;
+Delete From Users;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------kareem--------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+----------Vendor I
+--A)
+Go;
+Create Proc postProduct
+	@vendorUsername varchar(20),
+	@product_name varchar(20) ,
+	@category varchar(20), 
+	@product_description text ,
+	@price decimal(10,2),
+	@color varchar(20)
+
+	As
+	Begin
+			INSERT INTO Products(product_name, category ,product_description ,price ,color,vendor_username )
+				VALUES(@product_name,@category,@product_description,@price,@color,@vendorUsername)
+	End
+--B)
+Go;
+Create Proc vendorviewProducts
+	@vendorname varchar(20)
+	As
+	Begin
+		select *
+			from Products 
+				where Products.vendor_username = @vendorname
+	End
+--C)
+--Go;
+--Create Proc EditProduct
+--	@vendorname varchar(20), 
+--	@serialnumber int, 
+--	@product_name varchar(20),
+--	@category varchar(20),
+--  @product_description text,
+--	@price decimal(10,2),
+--	@color varchar(20)
+--	As
+--	Begin
+--		select *
+--			from Products 
+--				where Products.vendor_username = @vendorname
+--	End
+
+
+--D)
+--E)
+Go;
+Create Proc viewQuestions
+	@vendorname varchar(20)
+	As
+	Begin
+		select Customer_Question_Product.question
+			from Customer_Question_Product cp
+			   inner join Products p on cp.serial_no=p.serial_no
+				where p.vendor_username = @vendorname
+	End
+
+--F) Answer questions related to my products on the system.
+Go;
+Create Proc answerQuestions
+	@vendorname varchar(20), 
+	@serialno int, 
+	@customername varchar(20), 
+	@answer text
+	As
+	Begin
+		If Exists (Select *
+				   From Products p 
+				   Where @vendorname = p.vendor_username AND @serialno = p.serial_no)
+				   begin 
+						UPDATE Customer_Question_Product 
+						SET Customer_Question_Product.answer= @answer
+						WHERE Customer_Question_Product.serial_no=@serialno and Customer_Question_Product.customer_name= @customername
+					end
+	End
+--g) create offers on products I posted (one at a time) and update the product’s final price accordingly
+--Signature:
+--Name: addOffer
+--Input: offeramount int, expiry _date datetime
+--Output: Nothing
+Go;
+Create Proc addOffer
+	@offeramount int, 
+	@expiry_date datetime
+	As
+	Begin
+				   From Products p 
+				   Where @vendorname = p.vendor_username AND @serialno = p.serial_no)
+				   begin 
+						UPDATE Customer_Question_Product 
+						SET Customer_Question_Product.answer= @answer
+						WHERE Customer_Question_Product.serial_no=@serialno and Customer_Question_Product.customer_name= @customername
+					end
+	End
+
+
+
+
+
