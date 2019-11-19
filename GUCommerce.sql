@@ -401,40 +401,43 @@ Create Proc showWishlistProduct
 --i)
 Go;
 Create Proc viewMyCart
-	@customer varchar(20)
-	AS
-	Begin
-		Select p.*
-		From Products p
-			Inner Join CustomerAddstoCartProduct c On p.serial_no=c.serial_no
-		Where c.customer_username=@customer
-	End
+    @customer varchar(20)
+    AS
+    Begin
+        Select p.*
+        From Products p
+            Inner Join CustomerAddstoCartProduct c On p.serial_no=c.serial_no
+        Where c.customer_username=@customer
+    End
 --j)
 Go;
 Create Proc calculatepriceOrder
-	@customername varchar(20),
-	@sum decimal(10,2) Output
-	As
-	Begin
-		Select @sum=Sum(p.price)
-		From CustomerAddstoCartProduct c 
-			Inner Join Products p On c.serial_no=p.serial_no
-		Where c.customer_username=@customername
-	End
---Go;
---Create Proc productsinorder
-	--@customername varchar(20), 
-	--@orderID int
-	--As
-	--Begin
-		
+    @customername varchar(20),
+    @sum decimal(10,2) Output
+    As
+    Begin
+        Select @sum=Sum(p.price)
+        From CustomerAddstoCartProduct c 
+            Inner Join Products p On c.serial_no=p.serial_no
+        Where c.customer_username=@customername
+    End
+Go;
+Create Proc productsinorder
+    @customername varchar(20), 
+    @orderID int
+    As
+    Begin
+        Update Products 
+            Inner Join Wishlist
+        Set customer_username=@customername
+        Where 
 Go;
 Create Proc emptyCart
-	@customername varchar(20)
-	AS
-	Begin
-		Delete From CustomerAddstoCartProduct Where customer_username=@customername
-	End
+    @customername varchar(20)
+    AS
+    Begin
+        Delete From CustomerAddstoCartProduct Where customer_username=@customername
+    End
 Go;
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------
